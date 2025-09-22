@@ -1,4 +1,4 @@
-import { useParams, useLocation, Link, useNavigate } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { API_EVENTS, fetchScreenshots } from "../api";
 
@@ -101,12 +101,16 @@ export default function Details() {
 
   const slides = useMemo(() => {
     if (!Array.isArray(matchedScreens)) return [];
+
     const toSrc = (s) => {
-      const raw = s?.screenshot ?? "";
+      const raw = s?.screenshot || s?.base64 || s?.h64 || "";
       return typeof raw === "string" && raw.startsWith("data:image/")
         ? raw
-        : `data:image/png;base64,${raw}`;
+        : raw
+        ? `data:image/png;base64,${raw}`
+        : "";
     };
+
     const uniq = new Map();
     for (const m of matchedScreens) {
       const ts = Number(m.shot?.timestamp ?? m.event?.timestamp);
@@ -123,7 +127,6 @@ export default function Details() {
     return [...uniq.values()].sort((a, b) => a.timestamp - b.timestamp);
   }, [matchedScreens]);
 
-  // --- NEW: counts per button name + toggle full list ---
   const buttonCounts = useMemo(() => {
     const map = new Map();
     for (const e of filteredRows) {
@@ -136,8 +139,8 @@ export default function Details() {
   }, [filteredRows]);
 
   const [showAllButtons, setShowAllButtons] = useState(false);
-
   const [idx, setIdx] = useState(0);
+
   const clamp = useCallback(
     (i) => Math.max(0, Math.min(i, Math.max(0, slides.length - 1))),
     [slides.length]
@@ -171,78 +174,103 @@ export default function Details() {
         </p>
         <p style={{ opacity: 0.7 }}>{status}</p>
 
-        {/* Grouped buttons */}
-<div style={{ marginTop: 16, padding: 12, border: "1px solid #eee", borderRadius: 8 }}>
-  <h3 style={{ marginTop: 0 }}>Grouped buttons</h3>
+        <div
+          style={{
+            marginTop: 16,
+            padding: 12,
+            border: "1px solid #eee",
+            borderRadius: 8,
+          }}
+        >
+          <h3 style={{ marginTop: 0 }}>Grouped buttons</h3>
 
-  {buttonCounts.length === 0 ? (
-    <p>No button events.</p>
-  ) : (
-    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-      <thead>
-        <tr>
-          <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: "6px 4px" }}>Name</th>
-          <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: "6px 4px" }}>Count</th>
-        </tr>
-      </thead>
-      <tbody>
-        {buttonCounts.slice(0, 10).map(({ name, count }) => (
-          <tr key={name}>
-            <td
-              style={{
-                padding: "6px 4px",
-                borderBottom: "1px solid #f3f3f3",
-                maxWidth: 420,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-              title={name}
-            >
-              {name}
-            </td>
-            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f3f3f3", textAlign: "right" }}>
-              {count}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )}
-</div>
+          {buttonCounts.length === 0 ? (
+            <p>No button events.</p>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th
+                    style={{
+                      textAlign: "left",
+                      borderBottom: "1px solid #ddd",
+                      padding: "6px 4px",
+                    }}
+                  >
+                    Name
+                  </th>
+                  <th
+                    style={{
+                      textAlign: "right",
+                      borderBottom: "1px solid #ddd",
+                      padding: "6px 4px",
+                    }}
+                  >
+                    Count
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {buttonCounts.slice(0, 10).map(({ name, count }) => (
+                  <tr key={name}>
+                    <td
+                      style={{
+                        padding: "6px 4px",
+                        borderBottom: "1px solid #f3f3f3",
+                        maxWidth: 420,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={name}
+                    >
+                      {name}
+                    </td>
+                    <td
+                      style={{
+                        padding: "6px 4px",
+                        borderBottom: "1px solid #f3f3f3",
+                        textAlign: "right",
+                      }}
+                    >
+                      {count}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div style={{ marginTop: 20 }}>
+          <button
+            onClick={() => setShowAllButtons((s) => !s)}
+            style={{
+              padding: "6px 12px",
+              marginLeft: 65,
+              borderRadius: 6,
+              border: "1px solid #ccc",
+              background: "#f5f5f5",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
+          >
+            {showAllButtons ? "Hide individual buttons" : "View individual buttons"}
+          </button>
 
-        {/* NEW: View individual buttons toggle (zamjena za "Existing raw list of events") */}
-<div style={{ marginTop: 20 }}>
-  <button
-    onClick={() => setShowAllButtons((s) => !s)}
-    style={{
-      padding: "6px 12px",
-      marginLeft: 65,
-      borderRadius: 6,
-      border: "1px solid #ccc",
-      background: "#f5f5f5",
-      cursor: "pointer",
-      fontWeight: "bold",
-    }}
-  >
-    {showAllButtons ? "Hide individual buttons" : "View individual buttons"}
-  </button>
-
-  {showAllButtons && (
-    filteredRows.length === 0 ? (
-      <p style={{ marginTop: 8 }}>No rows.</p>
-    ) : (
-      <ul style={{ marginTop: 8 }}>
-        {filteredRows.map((e, i) => (
-          <li key={e.id || e._id || e.timestamp || i}>
-            {new Date(e.timestamp).toLocaleString()} — {e.action ?? e.name ?? "(no action)"}
-          </li>
-        ))}
-      </ul>
-    )
-  )}
-</div>
-
+          {showAllButtons &&
+            (filteredRows.length === 0 ? (
+              <p style={{ marginTop: 8 }}>No rows.</p>
+            ) : (
+              <ul style={{ marginTop: 8 }}>
+                {filteredRows.map((e, i) => (
+                  <li key={e.id || e._id || e.timestamp || i}>
+                    {new Date(e.timestamp).toLocaleString()} —{" "}
+                    {e.action ?? e.name ?? "(no action)"}
+                  </li>
+                ))}
+              </ul>
+            ))}
+        </div>
       </div>
 
       <div style={{ margin: 24, padding: 12, marginLeft: 20 }}>
@@ -268,7 +296,9 @@ export default function Details() {
                   marginBottom: 8,
                 }}
               >
-                <div style={{ fontSize: 14, opacity: 0.8 }}>{slides[idx].label}</div>
+                <div style={{ fontSize: 14, opacity: 0.8 }}>
+                  {slides[idx].label}
+                </div>
                 <div style={{ fontSize: 12, opacity: 0.6 }}>
                   {idx + 1} / {slides.length}
                 </div>

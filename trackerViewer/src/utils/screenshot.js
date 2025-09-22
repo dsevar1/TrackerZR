@@ -25,8 +25,8 @@ export async function getScreenshotsList() {
 export function findInlineBase64(row) {
   const val =
     row?.screenshot ||
+    row?.base64 ||     
     row?.h64 ||
-    row?.base64 ||
     row?.b64 ||
     row?.image?.h64 ||
     row?.image?.base64;
@@ -122,11 +122,11 @@ export async function resolveAndOpenScreenshot(row, setBtnLabel, setDisabled) {
       return;
     }
     const match = bestScreenshotForRow(row, list);
-    if (!match || !match.screenshot) {
+    if (!match || !(match.screenshot || match.base64)) {
       alert("No matching screenshot entry found for this event.");
       return;
     }
-    openBase64InNewTab({ b64: match.screenshot, isDataUrl: true });
+    openBase64InNewTab({ b64: match.screenshot || match.base64, isDataUrl: true });
   } catch (e) {
     alert(e.message);
     console.error(e);
